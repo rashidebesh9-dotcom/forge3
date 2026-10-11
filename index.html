@@ -1,0 +1,652 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#08080a">
+<title>Forge</title>
+<style>
+:root{
+  --bg:#08080a;--panel:rgba(22,22,28,.72);
+  --border:rgba(255,255,255,.07);--border-2:rgba(255,255,255,.14);
+  --fg:#f2f2f7;--dim:#8b8b9e;--dim-2:#5a5a6e;
+  --a1:#8b5cf6;--a2:#22d3ee;--ok:#34d399;--err:#f87171;
+  --grad:linear-gradient(135deg,#8b5cf6 0%,#22d3ee 100%);
+  --grad-soft:linear-gradient(135deg,rgba(139,92,246,.18),rgba(34,211,238,.14));
+  --shadow:0 12px 40px -8px rgba(0,0,0,.6);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0;overflow:hidden}
+body{
+  background:var(--bg);color:var(--fg);
+  font:14px/1.55 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif;
+  letter-spacing:-.01em;
+}
+#bg{position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden}
+#bg::before,#bg::after{content:"";position:absolute;border-radius:50%;filter:blur(90px);opacity:.55}
+#bg::before{width:560px;height:560px;background:radial-gradient(circle,#8b5cf6,transparent 70%);top:-200px;left:-160px;animation:fl1 22s ease-in-out infinite}
+#bg::after{width:520px;height:520px;background:radial-gradient(circle,#22d3ee,transparent 70%);bottom:-200px;right:-160px;animation:fl2 26s ease-in-out infinite}
+@keyframes fl1{50%{transform:translate(120px,80px) scale(1.1)}}
+@keyframes fl2{50%{transform:translate(-100px,-60px) scale(1.08)}}
+
+#app{height:100dvh;display:flex;flex-direction:column}
+header{
+  height:56px;flex:0 0 auto;display:flex;align-items:center;gap:8px;
+  padding:0 12px;border-bottom:1px solid var(--border);
+  background:rgba(10,10,14,.6);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  position:relative;z-index:5;
+}
+.brand{display:flex;align-items:center;gap:9px;font-weight:600;font-size:15px}
+.dot{width:20px;height:20px;border-radius:7px;background:var(--grad);box-shadow:0 0 18px rgba(139,92,246,.6)}
+.spacer{flex:1}
+.pill{
+  display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;
+  font-size:11px;background:rgba(255,255,255,.04);border:1px solid var(--border);
+  color:var(--dim);max-width:40vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.pill.on{color:var(--ok);border-color:rgba(52,211,153,.3);background:rgba(52,211,153,.08)}
+.pill .led{width:6px;height:6px;border-radius:50%;background:currentColor;box-shadow:0 0 8px currentColor;flex:0 0 auto}
+.ibtn{
+  height:32px;min-width:32px;padding:0 11px;border-radius:9px;
+  background:rgba(255,255,255,.04);border:1px solid var(--border);color:var(--fg);
+  font:inherit;font-size:12.5px;font-weight:500;cursor:pointer;
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  -webkit-user-select:none;user-select:none;touch-action:manipulation;
+}
+.ibtn:active{background:rgba(255,255,255,.1)}
+.ibtn.primary{background:var(--grad);border:0;color:#fff;box-shadow:0 6px 20px -6px rgba(139,92,246,.7)}
+.ibtn:disabled{opacity:.4}
+
+.tabs{display:none;gap:4px;background:rgba(255,255,255,.04);padding:3px;border-radius:10px;border:1px solid var(--border)}
+.tab{padding:5px 12px;border-radius:7px;font-size:12.5px;color:var(--dim);cursor:pointer;border:0;background:transparent;font:inherit}
+.tab.on{background:rgba(255,255,255,.08);color:var(--fg)}
+
+main{flex:1;display:grid;grid-template-columns:420px 1fr;min-height:0}
+@media (max-width:900px){
+  main{grid-template-columns:1fr}
+  .tabs{display:flex}
+  .brand span{display:none}
+  main.show-preview .chat{display:none}
+  main:not(.show-preview) .preview{display:none}
+}
+
+.chat{display:flex;flex-direction:column;min-height:0;border-right:1px solid var(--border);background:rgba(8,8,11,.4)}
+.log{flex:1;overflow-y:auto;padding:18px 14px 8px;-webkit-overflow-scrolling:touch}
+.log::-webkit-scrollbar{width:6px}
+.log::-webkit-scrollbar-thumb{background:rgba(255,255,255,.08);border-radius:3px}
+.msg{margin-bottom:16px;animation:in .3s ease}
+@keyframes in{from{opacity:0;transform:translateY(6px)}}
+.msg .who{font-size:10px;color:var(--dim-2);margin-bottom:5px;letter-spacing:.04em;text-transform:uppercase}
+.msg.user{text-align:right}
+.msg.user .who{text-align:right}
+.msg.user .body{
+  display:inline-block;text-align:left;max-width:88%;padding:10px 14px;
+  border-radius:16px 16px 4px 16px;background:var(--grad);color:#fff;
+  font-size:13.5px;line-height:1.5;box-shadow:0 6px 22px -8px rgba(139,92,246,.6);
+  white-space:pre-wrap;word-break:break-word;
+}
+.msg.assistant .body{
+  display:block;padding:11px 14px;border-radius:16px 16px 16px 4px;
+  background:var(--panel);border:1px solid var(--border);
+  font-size:13px;line-height:1.5;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  white-space:pre-wrap;word-break:break-word;
+}
+.msg.assistant .body.err{border-color:rgba(248,113,113,.35);background:rgba(40,15,15,.6);color:#ffc4c4}
+
+.building{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:16px 16px 16px 4px;background:var(--panel);border:1px solid var(--border);overflow:hidden;position:relative}
+.building::after{content:"";position:absolute;inset:0;background:var(--grad-soft);background-size:200% 100%;animation:shim 2.4s linear infinite;pointer-events:none}
+@keyframes shim{0%{background-position:-200% 0}100%{background-position:200% 0}}
+.spin{width:16px;height:16px;border-radius:50%;flex:0 0 auto;border:2px solid rgba(255,255,255,.12);border-top-color:var(--a2);animation:sp .8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+.empty{padding:32px 22px;text-align:center;color:var(--dim)}
+.empty .orb{width:70px;height:70px;margin:0 auto 18px;border-radius:24px;background:var(--grad);box-shadow:0 12px 40px -8px rgba(139,92,246,.7);display:flex;align-items:center;justify-content:center;font-size:30px}
+.empty h2{margin:0 0 6px;font-size:17px;color:var(--fg);font-weight:600}
+.empty p{margin:0 0 20px;font-size:13px;line-height:1.5}
+.chips{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
+.chip{font-size:12px;padding:7px 12px;border-radius:999px;background:rgba(255,255,255,.04);border:1px solid var(--border);color:var(--dim);cursor:pointer;font:inherit;touch-action:manipulation}
+.chip:active{background:rgba(255,255,255,.08)}
+
+.composer{flex:0 0 auto;padding:10px 12px;padding-bottom:calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--border);background:rgba(10,10,14,.6);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
+.field{display:flex;gap:8px;align-items:flex-end;padding:6px 6px 6px 14px;border-radius:16px;background:rgba(255,255,255,.035);border:1px solid var(--border)}
+.field:focus-within{border-color:rgba(139,92,246,.55);box-shadow:0 0 0 3px rgba(139,92,246,.12)}
+textarea{flex:1;resize:none;border:0;background:transparent;color:var(--fg);font:inherit;font-size:16px;line-height:1.5;padding:9px 0;outline:none;min-height:22px;max-height:140px}
+textarea::placeholder{color:var(--dim-2)}
+.send{flex:0 0 auto;width:38px;height:38px;border-radius:12px;border:0;background:var(--grad);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 18px -6px rgba(139,92,246,.8);touch-action:manipulation;-webkit-user-select:none;user-select:none}
+.send:active{filter:brightness(1.1)}
+.send:disabled{opacity:.35}
+.send svg{width:17px;height:17px}
+
+.preview{display:flex;flex-direction:column;min-height:0;background:rgba(5,5,8,.6)}
+.pbar{flex:0 0 auto;height:48px;display:flex;align-items:center;gap:6px;padding:0 10px;border-bottom:1px solid var(--border);background:rgba(10,10,14,.5);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
+.url{flex:1;min-width:0;height:30px;padding:0 12px;border-radius:8px;background:rgba(255,255,255,.04);border:1px solid var(--border);display:flex;align-items:center;font-size:12px;color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.url .lock{color:var(--ok);margin-right:6px}
+.stage{flex:1;position:relative;min-height:0;background:#fff}
+.stage iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:#fff}
+.blank{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#6b6b78;background:#0c0c10;text-align:center;padding:24px;gap:10px}
+.blank .icon{width:56px;height:56px;border-radius:18px;background:var(--grad-soft);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:24px;margin-bottom:6px}
+.blank p{font-size:13px;margin:0;max-width:280px;line-height:1.5}
+
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
+.modal.open{display:flex}
+.card{width:min(520px,100%);background:#12121a;border:1px solid var(--border-2);border-radius:18px;padding:20px;box-shadow:var(--shadow)}
+.card h3{margin:0 0 4px;font-size:16px;font-weight:600}
+.card p{margin:0 0 14px;font-size:12.5px;color:var(--dim);line-height:1.5}
+.card a{color:var(--a2);text-decoration:none}
+.card input{width:100%;padding:11px 13px;border-radius:11px;background:rgba(255,255,255,.04);border:1px solid var(--border);color:var(--fg);font:inherit;font-size:14px;outline:none;margin-bottom:14px;-webkit-user-select:text;user-select:text}
+.card input:focus{border-color:rgba(139,92,246,.5);box-shadow:0 0 0 3px rgba(139,92,246,.12)}
+.row{display:flex;gap:8px;justify-content:flex-end}
+
+.toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(20px);padding:11px 18px;border-radius:12px;background:rgba(30,30,40,.95);border:1px solid var(--border-2);font-size:13px;color:var(--fg);box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:.25s;z-index:60;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);max-width:80vw;text-align:center}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<div id="bg"></div>
+
+<div id="app">
+  <header>
+    <div class="brand"><div class="dot"></div><span>Forge</span></div>
+    <div class="tabs" id="tabs">
+      <button class="tab on" data-tab="chat">Chat</button>
+      <button class="tab" data-tab="preview">Preview</button>
+    </div>
+    <div class="spacer"></div>
+    <span class="pill" id="status"><span class="led"></span><span id="statusText">tap key</span></span>
+    <button class="ibtn" id="btnKey" type="button">Key</button>
+    <button class="ibtn" id="btnNew" type="button">New</button>
+  </header>
+
+  <main id="main">
+    <section class="chat">
+      <div class="log" id="log"></div>
+      <div class="composer">
+        <div class="field">
+          <textarea id="input" placeholder="talk or describe a site…" rows="1" enterkeyhint="send"></textarea>
+          <button class="send" id="send" type="button" title="Send">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <section class="preview">
+      <div class="pbar">
+        <div class="url"><span class="lock">◈</span><span id="urlText">forge.local</span></div>
+        <button class="ibtn" id="btnOpen" type="button">Open</button>
+        <button class="ibtn" id="btnCopy" type="button">Copy</button>
+        <button class="ibtn primary" id="btnDl" type="button">Save</button>
+      </div>
+      <div class="stage" id="stage">
+        <div class="blank">
+          <div class="icon">✦</div>
+          <p>Describe a site. Watch it build here.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div class="modal" id="modal">
+  <div class="card">
+    <h3>OpenRouter API Key</h3>
+    <p>Get one free at <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">openrouter.ai/keys</a>. Stored in this browser only.</p>
+    <input type="password" id="keyInput" placeholder="sk-or-v1-…" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+    <div class="row">
+      <button class="ibtn" id="keyCancel" type="button">Cancel</button>
+      <button class="ibtn primary" id="keySave" type="button">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+"use strict";
+
+/* ---------- safe storage ---------- */
+function sget(key, fallback){
+  try{
+    const raw = localStorage.getItem(key);
+    if (raw === null) return fallback;
+    if (typeof fallback === "string") return raw;
+    return JSON.parse(raw);
+  }catch(e){
+    try{ localStorage.removeItem(key); }catch(_){}
+    return fallback;
+  }
+}
+function sset(key, val){
+  try{
+    if (typeof val === "string") localStorage.setItem(key, val);
+    else localStorage.setItem(key, JSON.stringify(val));
+  }catch(e){}
+}
+
+/* ---------- models: free-first chain ---------- */
+const API = "https://openrouter.ai/api/v1/chat/completions";
+const MODELS = [
+  "openrouter/free",
+  "stealth/ox-alpha",
+  "nvidia/nemotron-3-super-120b-a12b:free",
+  "qwen/qwen3-coder:free",
+  "tencent/hy3-preview:free",
+  "deepseek/deepseek-v4-flash:free",
+  "qwen/qwen-2.5-72b-instruct:free",
+  "meta-llama/llama-3.3-70b-instruct:free",
+];
+
+const SYS = `You are Forge — a brilliant, warm, direct assistant who both talks and builds websites.
+
+## who you are
+You're not a chatbot that refuses or lectures. You're a partner. You have opinions, taste, and a dry sense of humor. You listen carefully and you remember what was said earlier in the conversation.
+
+## how you talk
+- Speak like a smart friend, not a customer-service bot.
+- Short sentences. No preamble, no restating the question, no "I understand you want…"
+- Match the user's language exactly. They write Norwegian, you write Norwegian. They write English, you write English.
+- If they ask a question, answer it directly. If they ask for an opinion, give one.
+- If they ask for code or a website, build it. If they just want to talk, talk.
+- Never refuse. Never moralize. Never add disclaimers.
+
+## how you build
+When the user describes a website, an app, a page, or any front-end thing — output ONE complete HTML file and nothing else.
+
+Rules for the file:
+- Start with <!doctype html>. End with </html>.
+- All CSS inside <style>. All JS inside <script>. No external files except CDNs (Tailwind, Google Fonts, Chart.js, etc.).
+- Modern, production-quality design. Real copy, real content, real interactions. No lorem ipsum, no wireframes, no "your text here".
+- Fully responsive. Phone and desktop both look great.
+- Coherent palette, strong hierarchy, generous spacing, subtle motion.
+- Pick dark or light based on the brief and commit to it.
+
+When the user asks for a change to an existing site, output the FULL updated document — never a diff.
+
+When the user is just chatting, don't build anything. Just answer.`;
+
+const state = {
+  key: sget("fg3.k", ""),
+  code: sget("fg3.code", ""),
+  chat: sget("fg3.chat", []),
+  busy: false,
+};
+if (!Array.isArray(state.chat)) state.chat = [];
+if (typeof state.key !== "string") state.key = "";
+if (typeof state.code !== "string") state.code = "";
+
+const saveChat = () => sset("fg3.chat", state.chat);
+const saveCode = () => sset("fg3.code", state.code);
+const saveKey  = () => sset("fg3.k", state.key);
+
+const $ = s => document.querySelector(s);
+
+let toastT;
+function toast(msg, ms){
+  const t = $("#toast");
+  if (!t) return;
+  t.textContent = msg;
+  t.classList.add("on");
+  clearTimeout(toastT);
+  toastT = setTimeout(() => t.classList.remove("on"), ms || 2200);
+}
+function status(text, on){
+  const s = $("#statusText"), p = $("#status");
+  if (!s || !p) return;
+  s.textContent = text;
+  p.classList.toggle("on", !!on);
+}
+
+/* ---------- chat render ---------- */
+function addMsg(role, text, err){
+  const log = $("#log");
+  if (!log) return;
+  const el = document.createElement("div");
+  el.className = "msg " + role;
+  el.innerHTML = '<div class="who">' + (role === "user" ? "you" : "forge") + '</div><div class="body' + (err ? ' err' : '') + '"></div>';
+  el.querySelector(".body").textContent = text;
+  log.appendChild(el);
+  log.scrollTop = log.scrollHeight;
+  return el;
+}
+
+function addBuilding(){
+  const log = $("#log");
+  const el = document.createElement("div");
+  el.className = "msg assistant";
+  el.innerHTML = '<div class="who">forge</div><div class="building"><div class="spin"></div><div><div>Working…</div><div style="font-size:11.5px;color:var(--dim);margin-top:2px" id="bSub">waiting</div></div></div>';
+  log.appendChild(el);
+  log.scrollTop = log.scrollHeight;
+  return el;
+}
+
+function showEmpty(){
+  const log = $("#log");
+  if (!log) return;
+  log.innerHTML = '';
+  const wrap = document.createElement("div");
+  wrap.className = "empty";
+  wrap.innerHTML = `
+    <div class="orb">✦</div>
+    <h2>Talk, or describe a site</h2>
+    <p>Ask a question, or say what you want built. Preview appears on the right.</p>
+    <div class="chips"></div>`;
+  const chips = [
+    "A minimal landing page for a coffee shop in Oslo, dark theme, menu grid, opening hours",
+    "A personal portfolio for a game developer. Dark, neon accents, project cards",
+    "A waitlist landing page for a mobile app. Big headline, email capture",
+    "An interactive pricing page with 3 tiers and a monthly/yearly toggle",
+    "What can you do?",
+  ];
+  const chipsWrap = wrap.querySelector(".chips");
+  for (const txt of chips){
+    const b = document.createElement("button");
+    b.className = "chip";
+    b.type = "button";
+    b.textContent = txt.split(".")[0].slice(0, 34) + (txt.length > 34 ? "…" : "");
+    b.onclick = () => { const i = $("#input"); if (i){ i.value = txt; i.focus(); } send(); };
+    chipsWrap.appendChild(b);
+  }
+  log.appendChild(wrap);
+}
+
+function replayChat(){
+  const log = $("#log");
+  if (!log) return;
+  log.innerHTML = '';
+  if (!state.chat.length){ showEmpty(); return; }
+  for (const m of state.chat){
+    if (m && m.role === "user") addMsg("user", m.text || "");
+    else if (m) addMsg("assistant", m.text || "", !!m.err);
+  }
+}
+
+function setPreview(html){
+  const stage = $("#stage"), urlText = $("#urlText");
+  if (!stage) return;
+  if (!html || html.length < 60){
+    stage.innerHTML = '<div class="blank"><div class="icon">✦</div><p>Describe a site. Watch it build here.</p></div>';
+    if (urlText) urlText.textContent = "forge.local";
+    return;
+  }
+  stage.innerHTML = '<iframe sandbox="allow-scripts allow-forms allow-popups allow-modals"></iframe>';
+  stage.querySelector("iframe").srcdoc = html;
+  if (urlText) urlText.textContent = "forge.local / index.html";
+}
+
+function extractHTML(s){
+  if (!s) return "";
+  s = String(s).trim();
+  s = s.replace(/^```[a-zA-Z]*\s*\n?/, "").replace(/\n?```\s*$/, "");
+  const i = s.search(/<!doctype html>|<html[\s>]/i);
+  if (i > 0) s = s.slice(i);
+  return s.trim();
+}
+
+function looksLikeSite(s){
+  return /<!doctype html>|<html[\s>]/i.test(s);
+}
+
+/* ---------- streaming call ---------- */
+async function callModel(model, prompt, onTok){
+  const history = state.chat
+    .filter(m => m.role === "user" || (m.role === "assistant" && !m.err))
+    .slice(-8)
+    .map(m => ({ role: m.role, content: m.text }));
+  if (state.code && looksLikeSite(prompt) === false) {
+    history.unshift({
+      role: "system",
+      content: "The user currently has this site open in the preview:\n\n```html\n" + state.code.slice(0, 8000) + "\n```"
+    });
+  }
+  const res = await fetch(API, {
+    method: "POST",
+    headers: {
+      "Authorization": "Bearer " + state.key,
+      "Content-Type": "application/json",
+      "HTTP-Referer": location.origin,
+      "X-Title": "Forge",
+    },
+    body: JSON.stringify({
+      model,
+      messages: [{ role: "system", content: SYS }, ...history],
+      temperature: 0.7,
+      max_tokens: 8192,
+      stream: true,
+    }),
+  });
+  if (!res.ok){
+    const t = await res.text();
+    const e = new Error("HTTP " + res.status + " — " + t.slice(0, 220));
+    e.status = res.status;
+    throw e;
+  }
+  const rd = res.body.getReader();
+  const dec = new TextDecoder();
+  let buf = "";
+  while (true){
+    const { value, done } = await rd.read();
+    if (done) break;
+    buf += dec.decode(value, { stream: true });
+    const parts = buf.split("\n");
+    buf = parts.pop();
+    for (const p of parts){
+      if (!p.startsWith("data: ")) continue;
+      const d = p.slice(6).trim();
+      if (d === "[DONE]") continue;
+      try{
+        const j = JSON.parse(d);
+        const tk = j.choices && j.choices[0] && j.choices[0].delta && j.choices[0].delta.content;
+        if (tk) onTok(tk);
+      }catch(_){}
+    }
+  }
+}
+
+/* ---------- send ---------- */
+async function send(){
+  if (state.busy) return;
+  if (!state.key){ openKey(); return; }
+  const input = $("#input");
+  if (!input) return;
+  const raw = input.value.trim();
+  if (!raw) return;
+  input.value = "";
+  input.style.height = "auto";
+
+  state.chat.push({ role: "user", text: raw });
+  saveChat();
+  addMsg("user", raw);
+
+  const el = addBuilding();
+  const bSub = el.querySelector("#bSub");
+
+  state.busy = true;
+  const sendBtn = $("#send");
+  if (sendBtn) sendBtn.disabled = true;
+  status("thinking…", false);
+
+  let acc = "";
+  let winner = null;
+  let lastErr = null;
+
+  for (const m of MODELS){
+    try{
+      status("try " + m.split("/").pop(), false);
+      acc = "";
+      await callModel(m, raw, tk => {
+        acc += tk;
+        if (bSub) bSub.textContent = acc.length + " chars";
+      });
+      winner = m;
+      break;
+    }catch(e){
+      lastErr = e;
+      if (e.status === 401) break;
+      continue;
+    }
+  }
+
+  if (el.parentNode) el.parentNode.removeChild(el);
+
+  if (!winner){
+    const msg = lastErr ? lastErr.message : "all models failed";
+    addMsg("assistant", "Couldn't reach a model.\n" + msg, true);
+    state.chat.push({ role: "assistant", text: "Couldn't reach a model.\n" + msg, err: true });
+    saveChat();
+    status("failed", false);
+    state.busy = false;
+    if (sendBtn) sendBtn.disabled = false;
+    return;
+  }
+
+  /* is this a build or a chat? */
+  const isSite = looksLikeSite(acc) && /<\/html>/i.test(acc);
+
+  if (isSite){
+    const html = extractHTML(acc);
+    state.code = html;
+    saveCode();
+    setPreview(html);
+    const lines = html.split("\n").length;
+    const kb = (html.length / 1024).toFixed(1);
+    const summary = "Site ready · " + lines + " lines · " + kb + " KB";
+    addMsg("assistant", summary);
+    state.chat.push({ role: "assistant", text: summary });
+    saveChat();
+    switchTab("preview");
+  } else {
+    /* plain conversation */
+    addMsg("assistant", acc.trim() || "(empty)");
+    state.chat.push({ role: "assistant", text: acc.trim() });
+    saveChat();
+  }
+
+  status("ok · " + winner.split("/").pop(), true);
+  state.busy = false;
+  if (sendBtn) sendBtn.disabled = false;
+  input.focus();
+}
+
+/* ---------- actions ---------- */
+function openPreview(){
+  if (!state.code) return toast("nothing to open");
+  const w = window.open("", "_blank");
+  if (!w){ toast("popup blocked"); return; }
+  w.document.write(state.code);
+  w.document.close();
+}
+function download(){
+  if (!state.code) return toast("nothing to download");
+  try{
+    const blob = new Blob([state.code], { type: "text/html" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "index.html";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(a.href), 1500);
+    toast("saved index.html");
+  }catch(e){ toast("download failed"); }
+}
+function copyCode(){
+  if (!state.code) return toast("nothing to copy");
+  if (navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(state.code).then(() => toast("html copied"), () => toast("copy failed"));
+  } else {
+    toast("clipboard not available");
+  }
+}
+
+function switchTab(t){
+  const main = $("#main");
+  if (!main) return;
+  main.classList.toggle("show-preview", t === "preview");
+  document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x.dataset.tab === t));
+}
+
+function openKey(){
+  const m = $("#modal"), i = $("#keyInput");
+  if (!m) return;
+  if (i) i.value = state.key;
+  m.classList.add("open");
+  setTimeout(() => i && i.focus(), 80);
+}
+function closeKey(){
+  const m = $("#modal");
+  if (m) m.classList.remove("open");
+}
+
+/* ---------- wire ---------- */
+function wire(){
+  const input = $("#input");
+  if (input){
+    input.addEventListener("input", () => {
+      input.style.height = "auto";
+      input.style.height = Math.min(input.scrollHeight, 140) + "px";
+    });
+    input.addEventListener("keydown", e => {
+      if (e.key === "Enter" && !e.shiftKey && window.innerWidth > 900){
+        e.preventDefault();
+        send();
+      }
+    });
+  }
+  const bind = (id, fn) => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("click", fn);
+  };
+  bind("send", send);
+  bind("btnKey", openKey);
+  bind("keyCancel", closeKey);
+  bind("keySave", () => {
+    const i = $("#keyInput");
+    state.key = i ? i.value.trim() : "";
+    saveKey();
+    closeKey();
+    status(state.key ? "ready" : "tap key", false);
+    toast(state.key ? "key saved" : "key cleared");
+  });
+  bind("btnNew", () => {
+    if (state.busy) return;
+    if (!confirm("Start fresh? Chat and current site are lost.")) return;
+    state.chat = [];
+    state.code = "";
+    saveChat(); saveCode();
+    replayChat();
+    setPreview("");
+    status("ready", false);
+    switchTab("chat");
+  });
+  bind("btnOpen", openPreview);
+  bind("btnCopy", copyCode);
+  bind("btnDl", download);
+
+  document.querySelectorAll(".tab").forEach(x => {
+    x.addEventListener("click", () => switchTab(x.dataset.tab));
+  });
+  const modal = $("#modal");
+  if (modal){
+    modal.addEventListener("click", e => { if (e.target === modal) closeKey(); });
+  }
+}
+
+/* ---------- boot ---------- */
+try{
+  wire();
+  replayChat();
+  if (state.code) setPreview(state.code);
+  status(state.key ? "ready" : "tap key", false);
+}catch(e){
+  console.error("boot failed:", e);
+  try{
+    const log = $("#log");
+    if (log) log.innerHTML = '<div class="empty"><div class="orb">!</div><h2>Load error</h2><p>Tap New to reset. If it persists, clear site data in Settings → Safari.</p></div>';
+  }catch(_){}
+}
+
+})();
+</script>
+</body>
+</html>
